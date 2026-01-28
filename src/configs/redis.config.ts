@@ -1,7 +1,11 @@
 import { createClient } from "redis";
 
+if (process.env.REDIS_URL === undefined) {
+    throw new Error("REDIS_URL is not defined in environment variables");
+}
+
 const redisClient = createClient({
-    url: process.env.REDIS_URL || "redis://localhost:6379",
+    url: process.env.REDIS_URL,
     socket: {
         reconnectStrategy: (retries) => {
             if (retries > 10) {

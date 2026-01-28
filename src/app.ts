@@ -5,7 +5,11 @@ import authRoutes from "./routes/auth.routes";
 import subscriptionRoutes from "./routes/subscription.routes";
 import contentRoutes from "./routes/content.routes";
 import cookieParser from "cookie-parser";
+import { setupSecurityConfigs } from "./configs/security.config";
+
 const app = express();
+
+setupSecurityConfigs(app);
 
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));

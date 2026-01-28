@@ -15,6 +15,7 @@ import {
     registerController,
     refreshAccessTokenController,
 } from "../controllers/auth.controller";
+import { authLimiter } from "../middlewares/limiters.middleware";
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.post(
     asyncHandler(registerController),
 );
 
-router.post(
+router.use(authLimiter).post(
     "/login",
     validator({
         check: "body",

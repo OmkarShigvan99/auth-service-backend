@@ -9,11 +9,15 @@ import {
     getWatchHistoryController,
     updateWatchProgressController,
 } from "../controllers/content.controller";
+import { contentLimiter } from "../middlewares/limiters.middleware";
 
 const router = Router();
 
 // All routes require authentication
 router.use(authMiddleware);
+
+// All routes are rate-limited
+router.use(contentLimiter);
 
 // Get all available content for the user
 router.get("/", asyncHandler(getAllContentController));

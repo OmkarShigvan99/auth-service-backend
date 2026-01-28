@@ -9,6 +9,7 @@ import {
     updateSessionLastUsedAt,
 } from "../services/session.service";
 import { redisClient, CACHE_KEYS, CACHE_TTL } from "../configs/redis.config";
+import { ca } from "zod/locales";
 
 // JWT payload type
 type JwtPayload = {
@@ -54,6 +55,8 @@ function extractToken(authHeader?: string): string {
 function handleTokenError(error: any): never {
     const message = error?.message || "";
 
+    console.log(message);
+
     if (message.includes("expired")) {
         throw new ApiError(
             StatusCodes.UNAUTHORIZED,
@@ -61,7 +64,11 @@ function handleTokenError(error: any): never {
         );
     }
 
-    if (message.includes("invalid") || message.includes("verify")) {
+    if (
+        message.includes("invalid") ||
+        message.includes("verify") ||
+        message.includes("malformed")
+    ) {
         throw new ApiError(
             StatusCodes.UNAUTHORIZED,
             "Invalid or malformed token",
@@ -79,13 +86,16 @@ export const authMiddleware = async (
 ) => {
     try {
         const accessToken = extractToken(req.headers.authorization);
-
-        const payload = jwt.verify(
-            accessToken,
-            process.env.JWT_ACCESS_TOKEN_SECRET as string,
-        ) as JwtPayload;
-
-        console.log(payload);
+        let payload: JwtPayload;
+        try {
+            // Verify token
+            payload = jwt.verify(
+                accessToken,
+                process.env.JWT_ACCESS_TOKEN_SECRET as string,
+            ) as JwtPayload;
+        } catch (error) {
+            handleTokenError(error);
+        }
 
         const { userId, sessionId, deviceId } = payload;
 

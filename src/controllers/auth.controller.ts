@@ -11,6 +11,8 @@ import {
     getSession,
     updateSessionRefreshToken,
     getSessionByRefreshTokenHash,
+    getSessionByUserIdAndDeviceId,
+    deleteSession,
 } from "../services/session.service";
 import { RegisterInput, LoginInput } from "../validation-schemas/auth.schema";
 import { StatusCodes } from "http-status-codes";
@@ -108,6 +110,14 @@ export async function loginController(
             StatusCodes.UNAUTHORIZED,
             "No user found with this email",
         );
+    }
+
+    const alreadyHasSession = await getSessionByUserIdAndDeviceId(
+        user.id,
+        deviceId,
+    );
+    if (alreadyHasSession && !alreadyHasSession.isRevoked) {
+        await deleteSession(alreadyHasSession.id);
     }
 
     // Validate password
