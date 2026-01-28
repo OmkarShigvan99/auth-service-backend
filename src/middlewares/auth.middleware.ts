@@ -8,6 +8,7 @@ import {
     getSessionByUserIdAndDeviceId,
     updateSessionLastUsedAt,
 } from "../services/session.service";
+import { redisClient, CACHE_KEYS, CACHE_TTL } from "../configs/redis.config";
 
 // JWT payload type
 type JwtPayload = {
@@ -88,25 +89,43 @@ export const authMiddleware = async (
 
         const { userId, sessionId, deviceId } = payload;
 
-        // Step 1: Check if user exists using user service
-        const user = await getUser(userId);
-        if (!user) {
-            throw new ApiError(
-                StatusCodes.UNAUTHORIZED,
-                "User not found. Token is invalid.",
+        // Step 1: Try to get session from Redis cache (cache-aside pattern)
+        const cacheKey = CACHE_KEYS.SESSION(sessionId);
+        const cachedSession = await redisClient.get(cacheKey);
+
+        let session;
+        if (cachedSession) {
+            // Cache hit
+            session = JSON.parse(cachedSession);
+        } else {
+            // Cache miss - fetch from database
+            // Step 2: Check if user exists using user service
+            const user = await getUser(userId);
+            if (!user) {
+                throw new ApiError(
+                    StatusCodes.UNAUTHORIZED,
+                    "User not found. Token is invalid.",
+                );
+            }
+
+            // Step 3: Check if session exists using session service
+            session = await getSession(sessionId);
+            if (!session) {
+                throw new ApiError(
+                    StatusCodes.UNAUTHORIZED,
+                    "Session not found. Please login again.",
+                );
+            }
+
+            // Cache the session in Redis with TTL
+            await redisClient.setEx(
+                cacheKey,
+                CACHE_TTL.SESSION,
+                JSON.stringify(session),
             );
         }
 
-        // Step 2: Check if session exists using session service
-        const session = await getSession(sessionId);
-        if (!session) {
-            throw new ApiError(
-                StatusCodes.UNAUTHORIZED,
-                "Session not found. Please login again.",
-            );
-        }
-
-        // Step 3: Check if session is revoked
+        // Step 4: Check if session is revoked
         if (session.isRevoked) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
@@ -114,15 +133,15 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 3.5: Check if session has expired
-        if (new Date() > session.expiresAt) {
+        // Step 5: Check if session has expired
+        if (new Date() > new Date(session.expiresAt)) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
                 "Session has expired. Please login again.",
             );
         }
 
-        // Step 4: Verify session ID matches (additional security check)
+        // Step 6: Verify session ID matches (additional security check)
         if (session.id !== sessionId) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
@@ -130,7 +149,7 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 5: Update session lastUsedAt (session is valid and being used)
+        // Step 7: Update session lastUsedAt (session is valid and being used)
         await updateSessionLastUsedAt(sessionId);
 
         // All checks passed, set user info
