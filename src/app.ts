@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import { errorHandler } from "./utils/errorHandler";
 import authRoutes from "./routes/auth.routes";
 import subscriptionRoutes from "./routes/subscription.routes";
+import contentRoutes from "./routes/content.routes";
 import cookieParser from "cookie-parser";
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(bodyParser.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/subscription", subscriptionRoutes);
+app.use("/api/content", contentRoutes);
 
 app.use(errorHandler);
 

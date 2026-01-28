@@ -22,6 +22,7 @@ model User {
 
   subscription Subscription?
   sessions     Session[]
+  watchHistory WatchHistory[]
 }
 
 model Subscription {
@@ -39,6 +40,7 @@ model Plan {
   maxDevices Int
 
   subscriptions Subscription[]
+  contentAccess ContentAccess[]
 }
 
 enum PlanType {
@@ -63,4 +65,91 @@ model Session {
 
   @@unique([userId, deviceId])
   @@index([userId])
+}
+
+// OTT Content Models
+model Content {
+  id          String      @id @default(uuid())
+  title       String
+  description String
+  poster      String? // URL to poster image
+  thumbnail   String? // URL to thumbnail
+  duration    Int? // Duration in minutes (for movies/episodes)
+  releaseDate DateTime
+  rating      String? // Content rating (U, UA, A, S, etc.)
+  contentType ContentType // MOVIE, SERIES, DOCUMENTARY, etc.
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relationships
+  genres       ContentGenre[]
+  access       ContentAccess[]
+  watchHistory WatchHistory[]
+
+  @@index([contentType])
+  @@index([releaseDate])
+}
+
+enum ContentType {
+  MOVIE
+  SERIES
+  DOCUMENTARY
+  SHOW
+  SPORTS
+  KIDS
+}
+
+model Genre {
+  id       String         @id @default(uuid())
+  name     String         @unique
+  contents ContentGenre[]
+}
+
+model ContentGenre {
+  id        String  @id @default(uuid())
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String
+  genre     Genre   @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  genreId   String
+
+  @@unique([contentId, genreId])
+  @@index([genreId])
+}
+
+// Plan-aware content access control
+model ContentAccess {
+  id           String       @id @default(uuid())
+  content      Content      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId    String
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId       Int
+  videoQuality VideoQuality // Quality available for this plan (SD, HD, 4K, etc.)
+  createdAt    DateTime     @default(now())
+
+  @@unique([contentId, planId])
+  @@index([planId])
+}
+
+enum VideoQuality {
+  SD // 480p
+  HD // 720p
+  FHD // 1080p
+  UHD // 4K
+}
+
+// Watch history for user tracking
+model WatchHistory {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String
+  watchedAt DateTime @default(now())
+  progress  Int? // Progress in seconds (for resuming)
+  completed Boolean  @default(false)
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
 }
