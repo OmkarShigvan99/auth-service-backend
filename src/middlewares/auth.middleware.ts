@@ -109,7 +109,7 @@ export const authMiddleware = async (
             session = JSON.parse(cachedSession);
         } else {
             // Cache miss - fetch from database
-            // Step 2: Check if user exists using user service
+            // Check if user exists using user service
             const user = await getUser(userId);
             if (!user) {
                 throw new ApiError(
@@ -118,7 +118,7 @@ export const authMiddleware = async (
                 );
             }
 
-            // Step 3: Check if session exists using session service
+            // Check if session exists using session service
             session = await getSession(sessionId);
             if (!session) {
                 throw new ApiError(
@@ -135,7 +135,7 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 4: Check if session is revoked
+        // Check if session is revoked
         if (session.isRevoked) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
@@ -143,7 +143,7 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 5: Check if session has expired
+        // Check if session has expired
         if (new Date() > new Date(session.expiresAt)) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
@@ -151,7 +151,7 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 6: Verify session ID matches (additional security check)
+        // Verify session ID matches (additional security check)
         if (session.id !== sessionId) {
             throw new ApiError(
                 StatusCodes.UNAUTHORIZED,
@@ -159,7 +159,7 @@ export const authMiddleware = async (
             );
         }
 
-        // Step 7: Update session lastUsedAt (session is valid and being used)
+        // Update session lastUsedAt (session is valid and being used)
         await updateSessionLastUsedAt(sessionId);
 
         // All checks passed, set user info

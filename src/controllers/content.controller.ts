@@ -3,7 +3,9 @@ import { StatusCodes } from "http-status-codes";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/errorHandler";
 import { AuthenticatedRequest } from "../middlewares/auth.middleware";
+import { redisClient, CACHE_KEYS, CACHE_TTL } from "../configs/redis.config";
 import {
+    getUserSubscription,
     getAvailableContentForUser,
     getContentForUser,
     getContentByTypeForUser,
@@ -22,7 +24,48 @@ export async function getAllContentController(
     const { user } = req as AuthenticatedRequest;
     const userId = user?.userId as string;
 
-    const content = await getAvailableContentForUser(userId);
+    // Get user's subscription (with caching)
+    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
+    let subscription;
+
+    const cachedSubscription = await redisClient.get(cacheKey);
+    if (cachedSubscription) {
+        subscription = JSON.parse(cachedSubscription);
+    } else {
+        subscription = await getUserSubscription(userId);
+
+        if (!subscription) {
+            throw new ApiError(
+                StatusCodes.FORBIDDEN,
+                "User does not have a subscription",
+            );
+        }
+
+        // Cache subscription data
+        await redisClient.setEx(
+            cacheKey,
+            CACHE_TTL.USER_SUBSCRIPTION,
+            JSON.stringify(subscription),
+        );
+    }
+
+    // Try to get content from cache
+    const contentCacheKey = CACHE_KEYS.CONTENT_LIST(subscription.planId);
+    const cachedContent = await redisClient.get(contentCacheKey);
+
+    let content;
+    if (cachedContent) {
+        content = JSON.parse(cachedContent);
+    } else {
+        content = await getAvailableContentForUser(subscription.planId);
+
+        // Cache the result
+        await redisClient.setEx(
+            contentCacheKey,
+            CACHE_TTL.CONTENT,
+            JSON.stringify(content),
+        );
+    }
 
     res.status(StatusCodes.OK).json(
         new ApiResponse(StatusCodes.OK, "Content retrieved successfully", {
@@ -41,7 +84,77 @@ export async function getContentByIdController(
     const { contentId } = req.params;
     const userId = user?.userId as string;
 
-    const content = await getContentForUser(userId, contentId as string);
+    // Get user's subscription (with caching)
+    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
+    let subscription;
+
+    const cachedSubscription = await redisClient.get(cacheKey);
+    if (cachedSubscription) {
+        subscription = JSON.parse(cachedSubscription);
+    } else {
+        subscription = await getUserSubscription(userId);
+
+        if (!subscription) {
+            throw new ApiError(
+                StatusCodes.FORBIDDEN,
+                "User does not have a subscription",
+            );
+        }
+
+        // Cache subscription data
+        await redisClient.setEx(
+            cacheKey,
+            CACHE_TTL.USER_SUBSCRIPTION,
+            JSON.stringify(subscription),
+        );
+    }
+
+    // Try to get content from cache
+    const contentCacheKey = CACHE_KEYS.CONTENT_ITEM(
+        contentId as string,
+        subscription.planId,
+    );
+    const cachedContent = await redisClient.get(contentCacheKey);
+
+    let content;
+    if (cachedContent) {
+        content = JSON.parse(cachedContent);
+    } else {
+        content = await getContentForUser(
+            contentId as string,
+            subscription.planId,
+        );
+
+        if (!content) {
+            throw new ApiError(StatusCodes.NOT_FOUND, "Content not found");
+        }
+
+        if (!content.hasAccess) {
+            throw new ApiError(
+                StatusCodes.FORBIDDEN,
+                `This content is not available for your ${subscription.plan.type} plan. Please upgrade your subscription.`,
+            );
+        }
+
+        if (!content.isActive) {
+            throw new ApiError(
+                StatusCodes.NOT_FOUND,
+                "Content is not available",
+            );
+        }
+
+        // Remove extra fields before caching
+        const { hasAccess, isActive, ...cacheData } = content;
+
+        // Cache the result
+        await redisClient.setEx(
+            contentCacheKey,
+            CACHE_TTL.CONTENT,
+            JSON.stringify(cacheData),
+        );
+
+        content = cacheData;
+    }
 
     res.status(StatusCodes.OK).json(
         new ApiResponse(StatusCodes.OK, "Content retrieved successfully", {
@@ -59,10 +172,54 @@ export async function getContentByTypeController(
     const { contentType } = req.params;
     const userId = user?.userId as string;
 
-    const content = await getContentByTypeForUser(
-        userId,
-        contentType as ContentType,
+    // Get user's subscription (with caching)
+    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
+    let subscription;
+
+    const cachedSubscription = await redisClient.get(cacheKey);
+    if (cachedSubscription) {
+        subscription = JSON.parse(cachedSubscription);
+    } else {
+        subscription = await getUserSubscription(userId);
+
+        if (!subscription) {
+            throw new ApiError(
+                StatusCodes.FORBIDDEN,
+                "User does not have a subscription",
+            );
+        }
+
+        // Cache subscription data
+        await redisClient.setEx(
+            cacheKey,
+            CACHE_TTL.USER_SUBSCRIPTION,
+            JSON.stringify(subscription),
+        );
+    }
+
+    // Try to get content from cache
+    const contentCacheKey = CACHE_KEYS.CONTENT_BY_TYPE(
+        subscription.planId,
+        contentType as string,
     );
+    const cachedContent = await redisClient.get(contentCacheKey);
+
+    let content;
+    if (cachedContent) {
+        content = JSON.parse(cachedContent);
+    } else {
+        content = await getContentByTypeForUser(
+            subscription.planId,
+            contentType as ContentType,
+        );
+
+        // Cache the result
+        await redisClient.setEx(
+            contentCacheKey,
+            CACHE_TTL.CONTENT,
+            JSON.stringify(content),
+        );
+    }
 
     res.status(StatusCodes.OK).json(
         new ApiResponse(StatusCodes.OK, "Content retrieved successfully", {
@@ -81,7 +238,54 @@ export async function getContentByGenreController(
     const { genre } = req.params;
     const userId = user?.userId as string;
 
-    const content = await getContentByGenreForUser(userId, genre as string);
+    // Get user's subscription (with caching)
+    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
+    let subscription;
+
+    const cachedSubscription = await redisClient.get(cacheKey);
+    if (cachedSubscription) {
+        subscription = JSON.parse(cachedSubscription);
+    } else {
+        subscription = await getUserSubscription(userId);
+
+        if (!subscription) {
+            throw new ApiError(
+                StatusCodes.FORBIDDEN,
+                "User does not have a subscription",
+            );
+        }
+
+        // Cache subscription data
+        await redisClient.setEx(
+            cacheKey,
+            CACHE_TTL.USER_SUBSCRIPTION,
+            JSON.stringify(subscription),
+        );
+    }
+
+    // Try to get content from cache
+    const contentCacheKey = CACHE_KEYS.CONTENT_BY_GENRE(
+        subscription.planId,
+        genre as string,
+    );
+    const cachedContent = await redisClient.get(contentCacheKey);
+
+    let content;
+    if (cachedContent) {
+        content = JSON.parse(cachedContent);
+    } else {
+        content = await getContentByGenreForUser(
+            subscription.planId,
+            genre as string,
+        );
+
+        // Cache the result
+        await redisClient.setEx(
+            contentCacheKey,
+            CACHE_TTL.CONTENT,
+            JSON.stringify(content),
+        );
+    }
 
     res.status(StatusCodes.OK).json(
         new ApiResponse(StatusCodes.OK, "Content retrieved successfully", {

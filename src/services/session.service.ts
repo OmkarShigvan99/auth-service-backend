@@ -1,5 +1,4 @@
 import { prisma } from "../configs/prisma.config";
-import { redisClient, CACHE_KEYS } from "../configs/redis.config";
 
 interface CreateSessionInput {
     userId: string;
@@ -43,9 +42,6 @@ export async function invalidateSession(sessionId: string): Promise<void> {
             isRevoked: true,
         },
     });
-
-    // Remove session from Redis cache
-    await redisClient.del(CACHE_KEYS.SESSION(sessionId));
 }
 
 export async function getSession(sessionId: string) {
@@ -129,17 +125,6 @@ export async function revokeLeastRecentSession(userId: string): Promise<void> {
 }
 
 export async function revokeAllSessions(userId: string): Promise<void> {
-    // Get all active sessions first
-    const sessions = await prisma.session.findMany({
-        where: {
-            userId,
-            isRevoked: false,
-        },
-        select: {
-            id: true,
-        },
-    });
-
     // Revoke all sessions in database
     await prisma.session.updateMany({
         where: {
@@ -150,12 +135,6 @@ export async function revokeAllSessions(userId: string): Promise<void> {
             isRevoked: true,
         },
     });
-
-    // Remove all sessions from Redis cache
-    const cacheKeys = sessions.map((s) => CACHE_KEYS.SESSION(s.id));
-    if (cacheKeys.length > 0) {
-        await redisClient.del(cacheKeys);
-    }
 }
 
 export async function updateSessionLastUsedAt(

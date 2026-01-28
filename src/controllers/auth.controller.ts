@@ -33,8 +33,8 @@ import {
 } from "../middlewares/refresh-token.middleware";
 import {
     ACCESS_TOKEN_EXPIRES_IN,
-    REFRESH_TOKEN_EXPIRES_IN,
 } from "../constants/auth.constant";
+import { CACHE_KEYS, redisClient } from "../configs/redis.config";
 
 export async function registerController(
     req: Request<{}, {}, RegisterInput>,
@@ -229,6 +229,9 @@ export async function logoutController(
     const { user } = req as AuthenticatedRequest;
     await invalidateSession(user?.sessionId as string);
 
+    // Remove session from Redis cache
+    await redisClient.del(CACHE_KEYS.SESSION(user?.sessionId as string));
+
     res.status(StatusCodes.OK).json(
         new ApiResponse(StatusCodes.OK, "Logout successful", null),
     );
@@ -245,6 +248,9 @@ export async function logoutAllController(
 
     for (const session of activeSessions) {
         await invalidateSession(session.id);
+        
+        // Remove session from Redis cache
+        await redisClient.del(CACHE_KEYS.SESSION(session.id));
     }
     res.status(StatusCodes.OK).json(
         new ApiResponse(

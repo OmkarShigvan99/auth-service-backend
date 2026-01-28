@@ -1,55 +1,23 @@
 import { prisma } from "../configs/prisma.config";
-import { ApiError } from "../utils/errorHandler";
-import { StatusCodes } from "http-status-codes";
-import { redisClient, CACHE_KEYS, CACHE_TTL } from "../configs/redis.config";
+
+// Get user's subscription
+export async function getUserSubscription(userId: string) {
+    return await prisma.subscription.findUnique({
+        where: { userId },
+        include: {
+            plan: true,
+        },
+    });
+}
 
 // Get all content available for a user based on their subscription plan
-export async function getAvailableContentForUser(userId: string) {
-    // Get user's subscription (with caching)
-    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
-    let subscription;
-
-    const cachedSubscription = await redisClient.get(cacheKey);
-    if (cachedSubscription) {
-        subscription = JSON.parse(cachedSubscription);
-    } else {
-        subscription = await prisma.subscription.findUnique({
-            where: { userId },
-            include: {
-                plan: true,
-            },
-        });
-
-        if (!subscription) {
-            throw new ApiError(
-                StatusCodes.FORBIDDEN,
-                "User does not have a subscription",
-            );
-        }
-
-        // Cache subscription data
-        await redisClient.setEx(
-            cacheKey,
-            CACHE_TTL.USER_SUBSCRIPTION,
-            JSON.stringify(subscription),
-        );
-    }
-
-    // Try to get content from cache (cache-aside pattern)
-    const contentCacheKey = CACHE_KEYS.CONTENT_LIST(subscription.planId);
-    const cachedContent = await redisClient.get(contentCacheKey);
-
-    if (cachedContent) {
-        return JSON.parse(cachedContent);
-    }
-
-    // Cache miss - fetch from database
+export async function getAvailableContentForUser(planId: number) {
     const availableContent = await prisma.content.findMany({
         where: {
             isActive: true,
             access: {
                 some: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -61,7 +29,7 @@ export async function getAvailableContentForUser(userId: string) {
             },
             access: {
                 where: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -70,7 +38,7 @@ export async function getAvailableContentForUser(userId: string) {
         },
     });
 
-    const result = availableContent.map((content) => ({
+    return availableContent.map((content) => ({
         id: content.id,
         title: content.title,
         description: content.description,
@@ -83,61 +51,10 @@ export async function getAvailableContentForUser(userId: string) {
         genres: content.genres.map((g) => g.genre.name),
         videoQuality: content.access[0]?.videoQuality || null,
     }));
-
-    // Cache the result with 1 day TTL
-    await redisClient.setEx(
-        contentCacheKey,
-        CACHE_TTL.CONTENT,
-        JSON.stringify(result),
-    );
-
-    return result;
 }
 
-// Get a single content with access control check
-export async function getContentForUser(userId: string, contentId: string) {
-    // Get user's subscription (with caching)
-    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
-    let subscription;
-
-    const cachedSubscription = await redisClient.get(cacheKey);
-    if (cachedSubscription) {
-        subscription = JSON.parse(cachedSubscription);
-    } else {
-        subscription = await prisma.subscription.findUnique({
-            where: { userId },
-            include: {
-                plan: true,
-            },
-        });
-
-        if (!subscription) {
-            throw new ApiError(
-                StatusCodes.FORBIDDEN,
-                "User does not have a subscription",
-            );
-        }
-
-        // Cache subscription data
-        await redisClient.setEx(
-            cacheKey,
-            CACHE_TTL.USER_SUBSCRIPTION,
-            JSON.stringify(subscription),
-        );
-    }
-
-    // Try to get content from cache
-    const contentCacheKey = CACHE_KEYS.CONTENT_ITEM(
-        contentId,
-        subscription.planId,
-    );
-    const cachedContent = await redisClient.get(contentCacheKey);
-
-    if (cachedContent) {
-        return JSON.parse(cachedContent);
-    }
-
-    // Cache miss - fetch from database
+// Get a single content with access check
+export async function getContentForUser(contentId: string, planId: number) {
     const content = await prisma.content.findUnique({
         where: { id: contentId },
         include: {
@@ -148,29 +65,17 @@ export async function getContentForUser(userId: string, contentId: string) {
             },
             access: {
                 where: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
     });
 
     if (!content) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "Content not found");
+        return null;
     }
 
-    // Check if user's plan has access to this content
-    if (content.access.length === 0) {
-        throw new ApiError(
-            StatusCodes.FORBIDDEN,
-            `This content is not available for your ${subscription.plan.type} plan. Please upgrade your subscription.`,
-        );
-    }
-
-    if (!content.isActive) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "Content is not available");
-    }
-
-    const result = {
+    return {
         id: content.id,
         title: content.title,
         description: content.description,
@@ -182,72 +87,23 @@ export async function getContentForUser(userId: string, contentId: string) {
         contentType: content.contentType,
         genres: content.genres.map((g) => g.genre.name),
         videoQuality: content.access[0]?.videoQuality,
+        isActive: content.isActive,
+        hasAccess: content.access.length > 0,
     };
-
-    // Cache the result with 1 day TTL
-    await redisClient.setEx(
-        contentCacheKey,
-        CACHE_TTL.CONTENT,
-        JSON.stringify(result),
-    );
-
-    return result;
 }
 
 // Get content by type for a user
 export async function getContentByTypeForUser(
-    userId: string,
+    planId: number,
     contentType: string,
 ) {
-    // Get user's subscription (with caching)
-    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
-    let subscription;
-
-    const cachedSubscription = await redisClient.get(cacheKey);
-    if (cachedSubscription) {
-        subscription = JSON.parse(cachedSubscription);
-    } else {
-        subscription = await prisma.subscription.findUnique({
-            where: { userId },
-            include: {
-                plan: true,
-            },
-        });
-
-        if (!subscription) {
-            throw new ApiError(
-                StatusCodes.FORBIDDEN,
-                "User does not have a subscription",
-            );
-        }
-
-        // Cache subscription data
-        await redisClient.setEx(
-            cacheKey,
-            CACHE_TTL.USER_SUBSCRIPTION,
-            JSON.stringify(subscription),
-        );
-    }
-
-    // Try to get content from cache
-    const contentCacheKey = CACHE_KEYS.CONTENT_BY_TYPE(
-        subscription.planId,
-        contentType,
-    );
-    const cachedContent = await redisClient.get(contentCacheKey);
-
-    if (cachedContent) {
-        return JSON.parse(cachedContent);
-    }
-
-    // Cache miss - fetch from database
     const content = await prisma.content.findMany({
         where: {
             contentType: contentType as any,
             isActive: true,
             access: {
                 some: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -259,7 +115,7 @@ export async function getContentByTypeForUser(
             },
             access: {
                 where: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -268,7 +124,7 @@ export async function getContentByTypeForUser(
         },
     });
 
-    const result = content.map((c) => ({
+    return content.map((c) => ({
         id: c.id,
         title: c.title,
         description: c.description,
@@ -281,64 +137,13 @@ export async function getContentByTypeForUser(
         genres: c.genres.map((g) => g.genre.name),
         videoQuality: c.access[0]?.videoQuality,
     }));
-
-    // Cache the result with 1 day TTL
-    await redisClient.setEx(
-        contentCacheKey,
-        CACHE_TTL.CONTENT,
-        JSON.stringify(result),
-    );
-
-    return result;
 }
 
 // Get content by genre for a user
 export async function getContentByGenreForUser(
-    userId: string,
+    planId: number,
     genreName: string,
 ) {
-    // Get user's subscription (with caching)
-    const cacheKey = CACHE_KEYS.USER_SUBSCRIPTION(userId);
-    let subscription;
-
-    const cachedSubscription = await redisClient.get(cacheKey);
-    if (cachedSubscription) {
-        subscription = JSON.parse(cachedSubscription);
-    } else {
-        subscription = await prisma.subscription.findUnique({
-            where: { userId },
-            include: {
-                plan: true,
-            },
-        });
-
-        if (!subscription) {
-            throw new ApiError(
-                StatusCodes.FORBIDDEN,
-                "User does not have a subscription",
-            );
-        }
-
-        // Cache subscription data
-        await redisClient.setEx(
-            cacheKey,
-            CACHE_TTL.USER_SUBSCRIPTION,
-            JSON.stringify(subscription),
-        );
-    }
-
-    // Try to get content from cache
-    const contentCacheKey = CACHE_KEYS.CONTENT_BY_GENRE(
-        subscription.planId,
-        genreName,
-    );
-    const cachedContent = await redisClient.get(contentCacheKey);
-
-    if (cachedContent) {
-        return JSON.parse(cachedContent);
-    }
-
-    // Cache miss - fetch from database
     const content = await prisma.content.findMany({
         where: {
             isActive: true,
@@ -351,7 +156,7 @@ export async function getContentByGenreForUser(
             },
             access: {
                 some: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -363,7 +168,7 @@ export async function getContentByGenreForUser(
             },
             access: {
                 where: {
-                    planId: subscription.planId,
+                    planId: planId,
                 },
             },
         },
@@ -372,7 +177,7 @@ export async function getContentByGenreForUser(
         },
     });
 
-    const result = content.map((c) => ({
+    return content.map((c) => ({
         id: c.id,
         title: c.title,
         description: c.description,
@@ -385,15 +190,6 @@ export async function getContentByGenreForUser(
         genres: c.genres.map((g) => g.genre.name),
         videoQuality: c.access[0]?.videoQuality,
     }));
-
-    // Cache the result with 1 day TTL
-    await redisClient.setEx(
-        contentCacheKey,
-        CACHE_TTL.CONTENT,
-        JSON.stringify(result),
-    );
-
-    return result;
 }
 
 // Check if user can access specific content (for streaming/playback)
