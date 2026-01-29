@@ -114,6 +114,11 @@ export async function loginController(
     );
     if (alreadyHasSession && !alreadyHasSession.isRevoked) {
         await deleteSession(alreadyHasSession.id);
+    } else if (alreadyHasSession && alreadyHasSession.isRevoked) {
+        throw new ApiError(
+            StatusCodes.FORBIDDEN,
+            "This device is logged out. Please use a different deviceId.",
+        );
     }
 
     // Validate password
