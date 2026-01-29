@@ -29,8 +29,9 @@ router.post(
     asyncHandler(registerController),
 );
 
-router.use(authLimiter).post(
+router.post(
     "/login",
+    authLimiter,
     validator({
         check: "body",
         validationSchema: loginSchema,
