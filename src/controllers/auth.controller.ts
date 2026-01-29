@@ -237,17 +237,40 @@ export async function logoutAllController(
     req: Request,
     res: Response,
 ): Promise<void> {
-    const { user } = req as AuthenticatedRequest;
-    const activeSessions = await getActiveSessionsByUser(
-        user?.userId as string,
-    );
+    const { email, password } = req.body;
 
+    // Find user by email
+    const user = await prisma.user.findUnique({
+        where: { email },
+    });
+
+    if (!user) {
+        throw new ApiError(
+            StatusCodes.UNAUTHORIZED,
+            "Invalid email or password",
+        );
+    }
+
+    // Validate password
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+        throw new ApiError(
+            StatusCodes.UNAUTHORIZED,
+            "Invalid email or password",
+        );
+    }
+
+    // Get all active sessions for the authenticated user
+    const activeSessions = await getActiveSessionsByUser(user.id);
+
+    // Revoke all sessions
     for (const session of activeSessions) {
         await invalidateSession(session.id);
 
         // Remove session from Redis cache
         await redisClient.del(CACHE_KEYS.SESSION(session.id));
     }
+
     res.status(StatusCodes.OK).json(
         new ApiResponse(
             StatusCodes.OK,
