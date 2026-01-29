@@ -14,7 +14,7 @@ import {
     getWatchHistory,
     updateWatchProgress,
 } from "../services/content.service";
-import { ContentType } from "../../generated/prisma/enums";
+import { ContentType } from "../../generated/prisma/client";
 
 // Get all content available for the authenticated user
 export async function getAllContentController(

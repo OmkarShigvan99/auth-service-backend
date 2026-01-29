@@ -15,6 +15,10 @@ app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/content", contentRoutes);

@@ -4,11 +4,12 @@
     "description": "",
     "license": "ISC",
     "author": "Omkar Shigvan",
-    "type": "module",
+    "type": "commonjs",
     "main": "index.js",
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "seed": "npx tsx src/seed.ts",
+        "seed:prod": "node dist/src/seed-production.js",
         "build": "tsc",
         "test": "vitest"
     },

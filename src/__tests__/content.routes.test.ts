@@ -11,7 +11,7 @@ import {
     PlanType,
     ContentType,
     VideoQuality,
-} from "../../generated/prisma/enums";
+} from "../../generated/prisma/client";
 
 // Mock rate limiters to disable rate limiting in tests
 vi.mock("../middlewares/limiters.middleware", () => ({

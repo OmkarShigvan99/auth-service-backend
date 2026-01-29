@@ -1,0 +1,78 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist
+
+# Generated files (will be regenerated in container)
+generated
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.docker
+.env.docker.example
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Test files
+coverage
+*.test.ts
+*.test.js
+__tests__
+*.spec.ts
+*.spec.js
+
+# Documentation
+README.md
+*.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Postman collections (optional, remove if needed in image)
+postman_collection.json
+postman
+
+# Development tools
+.prettierrc
+.eslintrc
+.editorconfig
+
+# Logs
+logs
+*.log
+
+# OS files
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vitest
+vitest.config.ts
+
+# Postman
+postman_collection.json
+postman
+.postman
+

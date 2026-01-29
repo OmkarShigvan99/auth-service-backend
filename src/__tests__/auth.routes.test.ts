@@ -8,7 +8,7 @@ import * as planService from "../services/plan.service";
 import { prisma } from "../configs/prisma.config";
 import { redisClient } from "../configs/redis.config";
 import jwt from "jsonwebtoken";
-import { PlanType } from "../../generated/prisma/enums";
+import { PlanType } from "../../generated/prisma/client";
 
 // Mock bcrypt module
 vi.mock("bcrypt", () => ({

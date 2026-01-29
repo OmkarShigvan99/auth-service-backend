@@ -8,9 +8,7 @@ import {
     invalidateSession,
     revokeAllSessions,
     revokeLeastRecentSession,
-    getSession,
     updateSessionRefreshToken,
-    getSessionByRefreshTokenHash,
     getSessionByUserIdAndDeviceId,
     deleteSession,
 } from "../services/session.service";
@@ -31,9 +29,7 @@ import {
     RefreshTokenPayload,
     RefreshTokenRequest,
 } from "../middlewares/refresh-token.middleware";
-import {
-    ACCESS_TOKEN_EXPIRES_IN,
-} from "../constants/auth.constant";
+import { ACCESS_TOKEN_EXPIRES_IN } from "../constants/auth.constant";
 import { CACHE_KEYS, redisClient } from "../configs/redis.config";
 
 export async function registerController(
@@ -248,7 +244,7 @@ export async function logoutAllController(
 
     for (const session of activeSessions) {
         await invalidateSession(session.id);
-        
+
         // Remove session from Redis cache
         await redisClient.del(CACHE_KEYS.SESSION(session.id));
     }

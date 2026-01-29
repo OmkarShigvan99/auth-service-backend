@@ -1,0 +1,736 @@
+{
+    "info": {
+        "_postman_id": "dbbd1269-2c0c-4711-a8da-724eb8637a46",
+        "name": "Auth Service OTT Platform API",
+        "description": "Complete API collection for Authentication, Subscription, and Content Management with Redis caching",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Register User",
+                    "id": "4ace4c6d-a420-4077-8d47-1010ae39cb16",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user. Password must contain uppercase, lowercase, number, and special character."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login - WEB",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const response = pm.response.json();",
+                                    "    pm.environment.set('accessToken', response.data.session.accessToken);",
+                                    "    pm.environment.set('userId', response.data.user.id);",
+                                    "    pm.environment.set('sessionId', response.data.session.id);",
+                                    "    pm.environment.set('deviceId', response.data.session.deviceId);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "id": "f2fa11f2-45e8-405e-a688-0a2667092d51",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"deviceId\": \"{{uuidv4}}\",\n  \"deviceType\": \"WEB\",\n  \"deviceName\": \"Chrome Browser\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login for WEB devices. RefreshToken sent in httpOnly cookie."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login - ANDROID/IOS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const response = pm.response.json();",
+                                    "    pm.environment.set('accessToken', response.data.session.accessToken);",
+                                    "    pm.environment.set('refreshToken', response.data.session.refreshToken);",
+                                    "    pm.environment.set('userId', response.data.user.id);",
+                                    "    pm.environment.set('sessionId', response.data.session.id);",
+                                    "    pm.environment.set('deviceId', response.data.session.deviceId);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "id": "bed5275e-1ae6-4982-9c7b-df0faa249575",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"deviceId\": \"{{uuidv4}}\",\n  \"deviceType\": \"ANDROID\",\n  \"deviceName\": \"Samsung Galaxy S21\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login for ANDROID/IOS devices. RefreshToken returned in response body."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login - Device Limit Reached",
+                    "id": "f7cb665f-ed06-44bb-ad64-5fb3ab460780",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"deviceId\": \"{{uuidv4}}\",\n  \"deviceType\": \"WEB\",\n  \"deviceName\": \"Firefox Browser\",\n  \"logoutStrategy\": \"LOGOUT_LEAST_RECENT\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login with logout strategy when device limit is reached. Options: LOGOUT_LEAST_RECENT or LOGOUT_ALL"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Token - WEB",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "id": "9989e218-ec26-4362-ac19-8f6c124869dd",
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const response = pm.response.json();",
+                                    "    pm.environment.set('accessToken', response.data.accessToken);",
+                                    "}"
+                                ],
+                                "type": "text/javascript",
+                                "packages": {},
+                                "requests": {}
+                            }
+                        },
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "id": "a3b4ba38-71ce-42de-8c0a-df1d0c8a4b52",
+                                "exec": [""],
+                                "type": "text/javascript",
+                                "packages": {},
+                                "requests": {}
+                            }
+                        }
+                    ],
+                    "id": "6eadf02a-aa26-48f5-b1e9-baaeac0320ab",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"deviceType\": \"WEB\",\n  \"accessToken\": \"{{accessToken}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/refresh",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "refresh"]
+                        },
+                        "description": "Refresh access token for WEB. RefreshToken from httpOnly cookie."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Token - ANDROID/IOS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const response = pm.response.json();",
+                                    "    pm.environment.set('accessToken', response.data.accessToken);",
+                                    "    pm.environment.set('refreshToken', response.data.refreshToken);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "id": "5bb71273-20ae-466f-bf48-c6e96f2296ae",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"deviceType\": \"ANDROID\",\n  \"accessToken\": \"{{accessToken}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/refresh",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "refresh"]
+                        },
+                        "description": "Refresh access token for ANDROID/IOS. RefreshToken in request body."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout",
+                    "id": "4b9e3bac-1e07-448e-b539-b9657905dddb",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/logout",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "logout"]
+                        },
+                        "description": "Logout current session. Invalidates session and removes from Redis cache."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout All Devices",
+                    "id": "81a1e399-4aa7-49fd-b111-abf93ab7ffaa",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/logout-all",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "logout-all"]
+                        },
+                        "description": "Logout from all devices. Revokes all sessions and removes from Redis cache."
+                    },
+                    "response": []
+                }
+            ],
+            "id": "2434f83a-bd73-45dc-8f5a-2f0449878e19"
+        },
+        {
+            "name": "Subscription Management",
+            "item": [
+                {
+                    "name": "Get Current Subscription",
+                    "id": "7f9c2a1b-3e4d-4c8f-a5b0-1d2e3f4g5h6i",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription/me",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription", "me"]
+                        },
+                        "description": "Get the current user's subscription details including plan information"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Subscription - FREE",
+                    "id": "638a1318-80c0-4005-b91a-08b40494b227",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"plan\": \"FREE\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription/update",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription", "update"]
+                        },
+                        "description": "Update subscription to FREE plan (1 device max)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Subscription - BASIC",
+                    "id": "5bc9d28b-9168-442b-b5d1-26de98edd7b8",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"plan\": \"BASIC\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription/update",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription", "update"]
+                        },
+                        "description": "Update subscription to BASIC plan (2 devices max)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Subscription - PREMIUM",
+                    "id": "2011eb03-3144-4fde-9090-fbabcd3835e6",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"plan\": \"PREMIUM\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription/update",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription", "update"]
+                        },
+                        "description": "Update subscription to PREMIUM plan (5 devices max)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Subscription - ULTRA_PREMIUM",
+                    "id": "b63e6fe4-746e-43c5-8150-528fc408c3f9",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"plan\": \"ULTRA_PREMIUM\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription/update",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription", "update"]
+                        },
+                        "description": "Update subscription to ULTRA_PREMIUM plan (10 devices max)"
+                    },
+                    "response": []
+                }
+            ],
+            "id": "d83ba486-52db-43c4-8675-c6b07088bd80"
+        },
+        {
+            "name": "Content Browsing (Protected)",
+            "item": [
+                {
+                    "name": "Get All Available Content",
+                    "id": "5882e8fc-cf81-4066-b75c-2cf4796198ad",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content"]
+                        },
+                        "description": "Get all content available for user's subscription plan. Results cached in Redis for 1 day."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by ID",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "// Set a sample content ID if not already set",
+                                    "if (!pm.environment.get('contentId')) {",
+                                    "    pm.environment.set('contentId', 'sample-content-id');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "id": "5908b218-034f-466b-a324-670d3f0fbedf",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/:contentId",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", ":contentId"],
+                            "variable": [
+                                {
+                                    "key": "contentId",
+                                    "value": "{{contentId}}",
+                                    "description": "Content UUID"
+                                }
+                            ]
+                        },
+                        "description": "Get single content with plan-aware access control. Returns 403 if user's plan doesn't have access."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Type - MOVIE",
+                    "id": "fd3528a5-eb04-4a1f-a8b2-244865455b9d",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/type/MOVIE",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "type", "MOVIE"]
+                        },
+                        "description": "Get all movies available for user's plan. Cached in Redis."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Type - SERIES",
+                    "id": "efb1742d-49d1-4fe6-904d-13d8f64c672c",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/type/SERIES",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "type", "SERIES"]
+                        },
+                        "description": "Get all series available for user's plan. Cached in Redis."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Type - DOCUMENTARY",
+                    "id": "f7be994b-100e-4e26-8db8-7ee1049b32d3",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/type/DOCUMENTARY",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "type", "DOCUMENTARY"]
+                        },
+                        "description": "Get all documentaries available for user's plan."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Type - SPORTS",
+                    "id": "b2cfc858-0764-4b40-9183-aa89b39c3a5f",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/type/SPORTS",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "type", "SPORTS"]
+                        },
+                        "description": "Get all sports content available for user's plan."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Genre - Action",
+                    "id": "7b25cc46-37fa-4aa0-b81a-fa42387b40de",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/genre/Action",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "genre", "Action"]
+                        },
+                        "description": "Get all Action genre content for user's plan. Cached in Redis."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Genre - Comedy",
+                    "id": "510153af-3012-49a4-b39a-348141980c9e",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/genre/Comedy",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "genre", "Comedy"]
+                        },
+                        "description": "Get all Comedy genre content for user's plan."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Content by Genre - Drama",
+                    "id": "93a68abc-20c4-408f-8083-52277d415c0d",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/genre/Drama",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "genre", "Drama"]
+                        },
+                        "description": "Get all Drama genre content for user's plan."
+                    },
+                    "response": []
+                }
+            ],
+            "id": "4ca536e2-c239-494e-81d4-8156bc21465c"
+        },
+        {
+            "name": "Watch History & Progress",
+            "item": [
+                {
+                    "name": "Get Watch History",
+                    "id": "4e4f84f1-db58-4656-9ec8-6d3d629dc157",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/history/all",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "content", "history", "all"]
+                        },
+                        "description": "Get user's watch history with progress and completion status."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Watch Progress",
+                    "id": "f082176d-02f9-4233-ad7c-53af00706e1d",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"progress\": 1800,\n  \"completed\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/:contentId/progress",
+                            "host": ["{{baseUrl}}"],
+                            "path": [
+                                "api",
+                                "content",
+                                ":contentId",
+                                "progress"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "contentId",
+                                    "value": "{{contentId}}",
+                                    "description": "Content UUID"
+                                }
+                            ]
+                        },
+                        "description": "Track viewing progress in seconds. Use for resume functionality."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Mark Content as Completed",
+                    "id": "d58d9ef8-b765-4797-94aa-e8a3fda97ed7",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"progress\": 7200,\n  \"completed\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/content/:contentId/progress",
+                            "host": ["{{baseUrl}}"],
+                            "path": [
+                                "api",
+                                "content",
+                                ":contentId",
+                                "progress"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "contentId",
+                                    "value": "{{contentId}}",
+                                    "description": "Content UUID"
+                                }
+                            ]
+                        },
+                        "description": "Mark content as completed after full watch."
+                    },
+                    "response": []
+                }
+            ],
+            "id": "38ee39f8-1e2f-4c3c-b8b5-df7ca07838c9"
+        }
+    ],
+    "variable": [
+        {
+            "id": "6e2d32d6-130d-44a2-b9fe-fc467cc48272",
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        }
+    ]
+}

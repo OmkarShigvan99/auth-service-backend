@@ -7,6 +7,7 @@ import {
 } from "../services/subscription.service";
 import { AuthenticatedRequest } from "../middlewares/auth.middleware";
 import { ApiResponse } from "../utils/ApiResponse";
+import { redisClient, CACHE_KEYS } from "../configs/redis.config";
 
 export async function updateUserSubscriptionController(
     req: AuthenticatedRequest,
@@ -34,10 +35,39 @@ export async function updateUserSubscriptionController(
         planId: planRecord.id,
     });
 
+    // Invalidate user subscription cache
+    await redisClient.del(CACHE_KEYS.USER_SUBSCRIPTION(userId as string));
+
     res.status(StatusCodes.OK).json(
         new ApiResponse(
             StatusCodes.OK,
             "Subscription updated successfully",
+            subscription,
+        ),
+    );
+}
+
+export async function getCurrentUserSubscriptionController(
+    req: AuthenticatedRequest,
+    res: Response,
+): Promise<void> {
+    const userId = req.user?.userId;
+
+    // Get subscription
+    const subscription = await getSubscriptionByUser(userId as string);
+
+    if (!subscription) {
+        res.status(StatusCodes.NOT_FOUND).json({
+            success: false,
+            message: "Subscription not found for this user",
+        });
+        return;
+    }
+
+    res.status(StatusCodes.OK).json(
+        new ApiResponse(
+            StatusCodes.OK,
+            "Subscription retrieved successfully",
             subscription,
         ),
     );

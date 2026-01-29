@@ -2,7 +2,10 @@ import { app } from "./app";
 
 const PORT = process.env.PORT || 3000;
 
-if (process.env.NODE_ENV !== "production") {
+if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.DISABLE_TLS_VERIFY === "true"
+) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 

@@ -9,7 +9,6 @@ import {
     updateSessionLastUsedAt,
 } from "../services/session.service";
 import { redisClient, CACHE_KEYS, CACHE_TTL } from "../configs/redis.config";
-import { ca } from "zod/locales";
 
 // JWT payload type
 type JwtPayload = {
