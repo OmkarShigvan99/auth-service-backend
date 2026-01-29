@@ -834,31 +834,17 @@ describe("Auth Routes", () => {
     });
 
     describe("POST /api/auth/logout-all", () => {
-        const validAccessToken = generateAccessToken(
-            mockUser.id,
-            mockSession.id,
-            mockSession.deviceId,
-        );
-
         beforeEach(() => {
             vi.mocked(redisClient.get).mockResolvedValue(null);
             vi.mocked(redisClient.setEx).mockResolvedValue("OK");
             vi.mocked(redisClient.del).mockResolvedValue(1);
         });
 
-        it("should logout from all devices successfully", async () => {
-            vi.spyOn(userService, "getUser").mockResolvedValue({
-                id: mockUser.id,
-                email: mockUser.email,
-                createdAt: mockUser.createdAt,
-            });
-            vi.spyOn(sessionService, "getSession").mockResolvedValue(
-                mockSession as any,
+        it("should logout from all devices successfully with email and password", async () => {
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(
+                mockUser as any,
             );
-            vi.spyOn(
-                sessionService,
-                "updateSessionLastUsedAt",
-            ).mockResolvedValue();
+            vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
             const sessions = [
                 mockSession,
@@ -876,34 +862,85 @@ describe("Auth Routes", () => {
 
             const response = await request(app)
                 .post("/api/auth/logout-all")
-                .set("Authorization", `Bearer ${validAccessToken}`);
+                .send({
+                    email: mockUser.email,
+                    password: "Password123!",
+                });
 
             expect(response.status).toBe(200);
             expect(response.body.message).toBe(
                 "All sessions logged out successfully",
             );
             expect(invalidateSpy).toHaveBeenCalledTimes(3);
+            expect(prisma.user.findUnique).toHaveBeenCalledWith({
+                where: { email: mockUser.email },
+            });
+            expect(bcrypt.compare).toHaveBeenCalledWith(
+                "Password123!",
+                mockUser.passwordHash,
+            );
         });
 
-        it("should return 401 without access token", async () => {
-            const response = await request(app).post("/api/auth/logout-all");
+        it("should return 401 with invalid email", async () => {
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+            const response = await request(app)
+                .post("/api/auth/logout-all")
+                .send({
+                    email: "nonexistent@example.com",
+                    password: "Password123!",
+                });
 
             expect(response.status).toBe(401);
+            expect(response.body.message).toContain(
+                "Invalid email or password",
+            );
+        });
+
+        it("should return 401 with invalid password", async () => {
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(
+                mockUser as any,
+            );
+            vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+            const response = await request(app)
+                .post("/api/auth/logout-all")
+                .send({
+                    email: mockUser.email,
+                    password: "WrongPassword123!",
+                });
+
+            expect(response.status).toBe(401);
+            expect(response.body.message).toContain(
+                "Invalid email or password",
+            );
+        });
+
+        it("should return 400 without email", async () => {
+            const response = await request(app)
+                .post("/api/auth/logout-all")
+                .send({
+                    password: "Password123!",
+                });
+
+            expect(response.status).toBe(400);
+        });
+
+        it("should return 400 without password", async () => {
+            const response = await request(app)
+                .post("/api/auth/logout-all")
+                .send({
+                    email: mockUser.email,
+                });
+
+            expect(response.status).toBe(400);
         });
 
         it("should handle case with no active sessions", async () => {
-            vi.spyOn(userService, "getUser").mockResolvedValue({
-                id: mockUser.id,
-                email: mockUser.email,
-                createdAt: mockUser.createdAt,
-            });
-            vi.spyOn(sessionService, "getSession").mockResolvedValue(
-                mockSession as any,
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(
+                mockUser as any,
             );
-            vi.spyOn(
-                sessionService,
-                "updateSessionLastUsedAt",
-            ).mockResolvedValue();
+            vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
             vi.spyOn(
                 sessionService,
                 "getActiveSessionsByUser",
@@ -911,24 +948,19 @@ describe("Auth Routes", () => {
 
             const response = await request(app)
                 .post("/api/auth/logout-all")
-                .set("Authorization", `Bearer ${validAccessToken}`);
+                .send({
+                    email: mockUser.email,
+                    password: "Password123!",
+                });
 
             expect(response.status).toBe(200);
         });
 
         it("should remove all sessions from Redis cache", async () => {
-            vi.spyOn(userService, "getUser").mockResolvedValue({
-                id: mockUser.id,
-                email: mockUser.email,
-                createdAt: mockUser.createdAt,
-            });
-            vi.spyOn(sessionService, "getSession").mockResolvedValue(
-                mockSession as any,
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(
+                mockUser as any,
             );
-            vi.spyOn(
-                sessionService,
-                "updateSessionLastUsedAt",
-            ).mockResolvedValue();
+            vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
             const sessions = [mockSession, { ...mockSession, id: "session-2" }];
             vi.spyOn(
@@ -937,9 +969,10 @@ describe("Auth Routes", () => {
             ).mockResolvedValue(sessions as any);
             vi.spyOn(sessionService, "invalidateSession").mockResolvedValue();
 
-            await request(app)
-                .post("/api/auth/logout-all")
-                .set("Authorization", `Bearer ${validAccessToken}`);
+            await request(app).post("/api/auth/logout-all").send({
+                email: mockUser.email,
+                password: "Password123!",
+            });
 
             // Check that Redis delete was called for cache invalidation
             expect(redisClient.del).toHaveBeenCalled();

@@ -4,6 +4,7 @@ import { verifyRefreshTokenMiddleware } from "../middlewares/refresh-token.middl
 import { validator } from "../middlewares/validator.middleware";
 import {
     loginSchema,
+    logoutAllSchema,
     refreshSchema,
     registerSchema,
 } from "../validation-schemas/auth.schema";
@@ -39,7 +40,14 @@ router.use(authLimiter).post(
 
 router.post("/logout", authMiddleware, asyncHandler(logoutController));
 
-router.post("/logout-all", authMiddleware, asyncHandler(logoutAllController));
+router.post(
+    "/logout-all",
+    validator({
+        check: "body",
+        validationSchema: logoutAllSchema,
+    }),
+    asyncHandler(logoutAllController),
+);
 
 router.post(
     "/refresh",

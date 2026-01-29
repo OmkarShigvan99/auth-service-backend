@@ -257,16 +257,20 @@
                         "method": "POST",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer {{accessToken}}"
+                                "key": "Content-Type",
+                                "value": "application/json"
                             }
                         ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/auth/logout-all",
                             "host": ["{{baseUrl}}"],
                             "path": ["api", "auth", "logout-all"]
                         },
-                        "description": "Logout from all devices. Revokes all sessions and removes from Redis cache."
+                        "description": "Logout from all devices. Requires email and password re-authentication for security. Revokes all sessions and removes from Redis cache."
                     },
                     "response": []
                 }
