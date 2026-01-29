@@ -31,7 +31,7 @@ Request flow (protected endpoint):
 
 ### Database Diagram
 
-![Database ER Diagram](docs/images/db-diagram.png)
+![Database ER Diagram](docs/images/er.png)
 
 This ER diagram visualizes the core entities and relations:
 
