@@ -1,4 +1,5 @@
 import { prisma } from "../configs/prisma.config";
+import { CACHE_KEYS, redisClient } from "../configs/redis.config";
 
 interface CreateSessionInput {
     userId: string;
@@ -121,6 +122,8 @@ export async function revokeLeastRecentSession(userId: string): Promise<void> {
 
     if (leastRecentSession) {
         await invalidateSession(leastRecentSession.id);
+        // invalidate the least recent session
+        await redisClient.del(CACHE_KEYS.SESSION(leastRecentSession.id));
     }
 }
 
@@ -135,6 +138,13 @@ export async function revokeAllSessions(userId: string): Promise<void> {
             isRevoked: true,
         },
     });
+
+    // Invalidate all sessions in cache
+    const sessions = await getActiveSessionsByUser(userId);
+    const sessionKeys = sessions.map((session) =>
+        CACHE_KEYS.SESSION(session.id),
+    );
+    await redisClient.del(sessionKeys);
 }
 
 export async function updateSessionLastUsedAt(
